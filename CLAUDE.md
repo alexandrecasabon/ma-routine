@@ -7,7 +7,9 @@ Usage familial privé, pas de distribution publique.
 
 - PWA : HTML + CSS + JavaScript pur. **Aucun framework, aucune étape de compilation, aucune dépendance npm.**
 - Cible unique : Safari sur iPad, installée depuis l'écran d'accueil (`display: standalone`).
-- Hébergement : GitHub Pages. Toute modification doit fonctionner en ouvrant `index.html` directement.
+- Hébergement : GitHub Pages — dépôt `alexandrecasabon/Ma-Routine`, app servie sur
+  https://alexandrecasabon.github.io/Ma-Routine/ . Toute modification doit quand même
+  fonctionner en ouvrant `index.html` directement.
 - Stockage : `localStorage`, clé `ma-routine-v2`. Aucun serveur, aucun compte, aucune télémétrie.
 - Polices système uniquement (`ui-rounded`). Ne jamais ajouter Google Fonts : l'app doit fonctionner hors ligne.
 - Le service worker (`sw.js`) met en cache la coquille de l'app. **Incrémenter `VERSION` à chaque
