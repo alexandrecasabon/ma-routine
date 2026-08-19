@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="fr-CA">
+<head>
+<meta charset="utf-8">
+<title>Ma routine</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#182747">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ma routine">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- Le ciel : le soleil avance au fil de la routine — ou de l'heure, les matins d'école. -->
+<header id="ciel">
+  <svg viewBox="0 0 1000 190" preserveAspectRatio="none" id="arc">
+    <path id="trajet" d="M60,178 Q500,-70 940,178" fill="none"
+          stroke="rgba(255,255,255,.40)" stroke-width="3" stroke-dasharray="8 12" stroke-linecap="round"/>
+    <g id="jalons"></g>
+    <g id="astre">
+      <circle id="halo" r="34" fill="rgba(255,255,255,.28)"/>
+      <circle id="disque" r="20" fill="#FFC93C"/>
+    </g>
+  </svg>
+  <!-- Compte à rebours du départ, matins d'école seulement -->
+  <div class="depart" id="depart" hidden></div>
+</header>
+
+<main>
+
+  <!-- 1. Sélection du profil. Aucun score n'apparaît ici. -->
+  <section class="ecran ecran--actif" id="ecran-enfants">
+    <h1 class="titre">Qui commence ?</h1>
+    <div class="grille" id="liste-enfants"></div>
+
+    <!-- Objectif collectif : le seul chiffre partagé, jamais détaillé par enfant. -->
+    <div class="jauge-famille">
+      <div class="jauge-famille__entete">
+        <span>Objectif de la famille cette semaine</span>
+        <span id="famille-compte"></span>
+      </div>
+      <div class="jauge-famille__piste"><div class="jauge-famille__remplissage" id="famille-barre"></div></div>
+      <p class="jauge-famille__note" id="famille-note"></p>
+    </div>
+  </section>
+
+  <!-- 2. Choix de la routine -->
+  <section class="ecran" id="ecran-routines">
+    <button class="retour" data-vers="ecran-enfants">← Changer</button>
+    <h1 class="titre" id="titre-routines"></h1>
+    <p class="serie" id="serie-perso"></p>
+    <div class="grille" id="liste-routines"></div>
+    <!-- Cumulatif du jour : l'enfant peut décocher une tâche marquée par erreur -->
+    <div class="jour" id="taches-jour"></div>
+  </section>
+
+  <!-- 3a. Vue guidée : une étape à la fois (7 et 9 ans) -->
+  <section class="ecran ecran--etape" id="ecran-etape">
+    <button class="retour" id="arret-etape" data-vers="ecran-routines">← Arrêter</button>
+    <p class="indice-arret" id="indice-arret" hidden>Garde ton doigt sur le bouton pour arrêter</p>
+    <div class="carte-etape">
+      <div class="anneau">
+        <svg viewBox="0 0 200 200">
+          <circle class="anneau__fond" cx="100" cy="100" r="88"/>
+          <circle class="anneau__jauge" cx="100" cy="100" r="88" id="jauge"/>
+        </svg>
+        <div class="anneau__emoji" id="etape-emoji">🌅</div>
+      </div>
+      <p class="etape-rang" id="etape-rang"></p>
+      <h2 class="etape-titre" id="etape-titre"></h2>
+      <p class="etape-chrono" id="etape-chrono"></p>
+      <button class="bouton-action bouton-action--demarrer" id="etape-demarrer" hidden>
+        <span>⏱</span><span>Démarrer</span>
+      </button>
+      <button class="bouton-action" id="bouton-fait">
+        <span class="bouton-action__coche">✓</span><span>Terminé</span>
+      </button>
+      <p class="apercu" id="apercu-suite"></p>
+    </div>
+  </section>
+
+  <!-- 3b. Vue liste : ordre libre (12 ans) -->
+  <section class="ecran ecran--liste" id="ecran-liste">
+    <button class="retour" data-vers="ecran-routines">← Arrêter</button>
+    <div class="panneau-liste">
+      <h2 class="liste-titre" id="liste-titre"></h2>
+      <p class="liste-sous" id="liste-sous"></p>
+      <ul class="taches" id="taches"></ul>
+    </div>
+  </section>
+
+  <!-- 4. Fin -->
+  <section class="ecran ecran--fin" id="ecran-fin">
+    <div class="sceau" id="sceau-fin">✓</div>
+    <h1 class="titre" id="titre-fin">Routine terminée</h1>
+    <p class="sous-titre" id="sous-titre-fin"></p>
+    <p class="sous-titre" id="record-fin"></p>
+    <button class="bouton-action bouton-action--calme" data-vers="ecran-enfants">Retour</button>
+  </section>
+
+  <!-- 5. Réglages -->
+  <section class="ecran ecran--parent" id="ecran-parent">
+    <button class="retour" data-vers="ecran-enfants">← Fermer</button>
+    <h1 class="titre">Réglages</h1>
+
+    <div class="panneau">
+      <h2 class="panneau__titre">Enfants</h2>
+      <p class="note">Le niveau règle la présentation : <strong>Guidé</strong> montre une étape à la fois,
+        <strong>Guidé + aperçu</strong> ajoute la suite du parcours, <strong>Liste libre</strong> affiche
+        toutes les tâches et laisse choisir l'ordre.</p>
+      <div id="reglages-enfants"></div>
+      <button class="btn-ajout" id="ajout-enfant">+ Ajouter un enfant</button>
+    </div>
+
+    <div class="panneau">
+      <h2 class="panneau__titre">Objectif collectif</h2>
+      <p class="note">Nombre de routines à compléter par la famille en une semaine. C'est le seul
+        indicateur partagé : aucun classement individuel n'est affiché nulle part.</p>
+      <div class="ligne">
+        <input class="champ-duree" type="number" id="objectif-famille" min="1" step="1">
+        <span class="ligne__unite">routines / semaine</span>
+      </div>
+    </div>
+
+    <div class="panneau">
+      <h2 class="panneau__titre">Matin d'école</h2>
+      <p class="note">Du lundi au vendredi, le soleil parcourt le ciel entre le réveil et le départ,
+        et le compte à rebours « École dans… » s'affiche pour tout le monde.</p>
+      <div class="ligne">
+        <span class="ligne__unite">Réveil</span>
+        <input type="time" id="heure-reveil">
+        <span class="ligne__unite">Départ</span>
+        <input type="time" id="heure-depart">
+      </div>
+    </div>
+
+    <div class="panneau">
+      <h2 class="panneau__titre">Code parent</h2>
+      <p class="note">Demandé après l'appui long sur ⚙. Il ne quitte jamais cet iPad.</p>
+      <button class="btn-ajout" id="changer-pin">Changer le code</button>
+    </div>
+
+    <div class="panneau">
+      <h2 class="panneau__titre">Par enfant</h2>
+      <p class="note">Choisis un enfant pour voir son historique et ses étapes. Un seul profil
+        à la fois, pour éviter toute lecture comparative.</p>
+      <div class="onglets" id="onglets-routines"></div>
+      <h3 class="panneau__section">Historique — 4 dernières semaines</h3>
+      <div id="historique-enfant"></div>
+      <h3 class="panneau__section">Routines</h3>
+      <div id="reglages-routines"></div>
+    </div>
+
+    <div class="panneau">
+      <h2 class="panneau__titre">Sauvegarde</h2>
+      <p class="note">Les données vivent uniquement sur cet iPad. Exporte de temps en temps.</p>
+      <div class="rangee-boutons">
+        <button class="btn-ajout" id="exporter">Exporter un fichier</button>
+        <label class="btn-ajout">Importer un fichier
+          <input type="file" id="importer" accept="application/json" hidden></label>
+        <button class="btn-ajout btn-ajout--danger" id="reinitialiser">Tout effacer</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- Pavé du code parent -->
+<div class="voile" id="voile-pin" hidden>
+  <div class="pave">
+    <p class="pave__titre" id="pin-titre">Code parent</p>
+    <div class="pave__points" id="pin-points"></div>
+    <div class="pave__grille" id="pin-grille"></div>
+    <button class="pave__annuler" id="pin-annuler">Annuler</button>
+  </div>
+</div>
+
+<button id="cle-parent" aria-label="Réglages (maintenir)">⚙</button>
+<script src="app.js" defer></script>
+</body>
+</html>
