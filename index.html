@@ -18,12 +18,38 @@
 <!-- Le ciel : le soleil avance au fil de la routine — ou de l'heure, les matins d'école. -->
 <header id="ciel">
   <svg viewBox="0 0 1000 190" preserveAspectRatio="none" id="arc">
+    <defs>
+      <radialGradient id="grad-soleil">
+        <stop offset="0%"  stop-color="#FFF6CC"/>
+        <stop offset="55%" stop-color="#FFD75E"/>
+        <stop offset="100%" stop-color="#FFB520"/>
+      </radialGradient>
+      <radialGradient id="grad-lune">
+        <stop offset="0%"  stop-color="#FFFFFF"/>
+        <stop offset="70%" stop-color="#F4F1E4"/>
+        <stop offset="100%" stop-color="#CFCAB4"/>
+      </radialGradient>
+      <radialGradient id="grad-halo">
+        <stop offset="0%"  stop-color="rgba(255,255,255,.55)"/>
+        <stop offset="55%" stop-color="rgba(255,255,255,.16)"/>
+        <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+      </radialGradient>
+      <mask id="masque-lune">
+        <rect x="-30" y="-30" width="60" height="60" fill="#fff"/>
+        <circle cx="10" cy="-8" r="16" fill="#000"/>
+      </mask>
+    </defs>
+    <g id="etoiles"></g>
     <path id="trajet" d="M60,178 Q500,-70 940,178" fill="none"
           stroke="rgba(255,255,255,.40)" stroke-width="3" stroke-dasharray="8 12" stroke-linecap="round"/>
     <g id="jalons"></g>
     <g id="astre">
-      <circle id="halo" r="34" fill="rgba(255,255,255,.28)"/>
-      <circle id="disque" r="20" fill="#FFC93C"/>
+      <circle id="halo" r="52" fill="url(#grad-halo)"/>
+      <g id="rayons">
+        <animateTransform attributeName="transform" type="rotate"
+                          from="0" to="360" dur="90s" repeatCount="indefinite"/>
+      </g>
+      <circle id="disque" r="20" fill="url(#grad-soleil)"/>
     </g>
   </svg>
   <!-- Compte à rebours du départ, matins d'école seulement -->

@@ -158,9 +158,37 @@ function serieCourante(enf){
    4. Le ciel
    --------------------------------------------------------- */
 const CIELS = {
-  matin: { debut:['#F9A26C','#FFD9A0'], fin:['#7FC9E8','#D6EEF9'], astre:'#FFC93C', halo:'rgba(255,255,255,.28)' },
-  soir:  { debut:['#6E8BC4','#FFC08A'], fin:['#1B2050','#3E4478'], astre:'#F4F1E4', halo:'rgba(255,255,255,.13)' }
+  matin: { debut:['#F9A26C','#FFD9A0'], fin:['#7FC9E8','#D6EEF9'] },
+  soir:  { debut:['#6E8BC4','#FFC08A'], fin:['#1B2050','#3E4478'] }
 };
+
+/* L'astre : rayons tournants le matin, croissant et étoiles le soir */
+const SVGNS = 'http://www.w3.org/2000/svg';
+
+(function construireRayons(){
+  const g = $('#rayons');
+  for (let i = 0; i < 12; i++){
+    const a = i * Math.PI / 6;
+    const l = document.createElementNS(SVGNS, 'line');
+    l.setAttribute('x1', (Math.cos(a) * 28).toFixed(1)); l.setAttribute('y1', (Math.sin(a) * 28).toFixed(1));
+    l.setAttribute('x2', (Math.cos(a) * 37).toFixed(1)); l.setAttribute('y2', (Math.sin(a) * 37).toFixed(1));
+    g.appendChild(l);
+  }
+})();
+
+(function construireEtoiles(){
+  const g = $('#etoiles');
+  const points = [[60,32],[140,84],[215,20],[330,62],[425,16],[505,74],[585,28],[665,88],
+                  [735,18],[815,58],[885,92],[945,36],[262,112],[702,124],[382,104],[118,132]];
+  points.forEach(([x, y], i) => {
+    const c = document.createElementNS(SVGNS, 'circle');
+    c.setAttribute('cx', x); c.setAttribute('cy', y);
+    c.setAttribute('r', i % 3 === 0 ? 2.2 : 1.4);
+    c.setAttribute('class', 'etoile');
+    c.style.animationDelay = `${(i * 0.43) % 3}s`;
+    g.appendChild(c);
+  });
+})();
 const hex2rgb = h => [1,3,5].map(i => parseInt(h.slice(i, i+2), 16));
 const rgb2hex = c => '#' + c.map(v => Math.round(v).toString(16).padStart(2,'0')).join('');
 const melange = (a,b,t) => rgb2hex(hex2rgb(a).map((v,i) => v + (hex2rgb(b)[i] - v) * t));
@@ -184,8 +212,15 @@ function peindreCiel(progres, moment = 'matin'){
 
   const p = pointArc(progres);
   $('#astre').setAttribute('transform', `translate(${p.x}, ${p.y})`);
-  $('#disque').setAttribute('fill', c.astre);
-  $('#halo').setAttribute('fill', c.halo);
+
+  // Soleil rayonnant le matin ; croissant de lune et étoiles le soir
+  const soir = moment === 'soir';
+  $('#disque').setAttribute('fill', soir ? 'url(#grad-lune)' : 'url(#grad-soleil)');
+  if (soir) $('#disque').setAttribute('mask', 'url(#masque-lune)');
+  else $('#disque').removeAttribute('mask');
+  $('#rayons').setAttribute('opacity', soir ? '0' : '1');
+  $('#halo').setAttribute('opacity', soir ? '.55' : '1');
+  $('#etoiles').style.opacity = soir ? String(progres) : '0';
 }
 
 function poserJalons(nb, faits = 0){
@@ -266,9 +301,9 @@ setInterval(majDepart, 1000);
 function aller(idEcran){
   $$('.ecran').forEach(e => e.classList.remove('ecran--actif'));
   $('#' + idEcran).classList.add('ecran--actif');
-  if (idEcran !== 'ecran-etape' && idEcran !== 'ecran-liste') arreterMinuteur();
   if (idEcran === 'ecran-enfants'){
-    libererEcran(); session = null;
+    if (!chronos.size) libererEcran();   // un chrono en cours garde l'écran allumé
+    session = null;
     $('#jalons').innerHTML = '';
     peindreCielAccueil();
     rendreJaugeFamille();
@@ -311,7 +346,6 @@ function rendreJaugeFamille(){
 }
 
 function ouvrirRoutines(enf){
-  arreterMinuteur();                 // avant de remplacer session, sinon le minuteur fuit
   session = { enfant: enf };
   $('#titre-routines').textContent = `Bonjour ${enf.prenom}`;
   const s = serieCourante(enf);
@@ -383,8 +417,7 @@ function demarrer(enf, routine){
   // Reprend l'avancement du jour : une routine interrompue ou corrigée continue où elle en était
   const faites = avancementDuJour(routine);
   const premier = routine.etapes.findIndex(e => !faites.has(e.id));
-  session = { enfant: enf, routine, index: premier < 0 ? routine.etapes.length : premier,
-              faites, minuteur: null, pastilleActive: null };
+  session = { enfant: enf, routine, index: premier < 0 ? routine.etapes.length : premier, faites };
   garderEcranAllume();
 
   if (enf.niveau === 'liste'){ avancerCiel(); aller('ecran-liste'); rendreListe(); }
@@ -455,22 +488,25 @@ function montrerEtape(){
     (enf.niveau === 'apercu' && suivante) ? `Ensuite : ${suivante.emoji}  ${suivante.titre}` : '';
 
   avancerCiel();
-  arreterMinuteur();
   const btn = $('#etape-demarrer');
+  const chrono = chronos.get(etape.id);
+  $('#etape-chrono').classList.remove('etape-chrono--pause');
   $('#jauge').classList.remove('anneau__jauge--prep');
-  if (etape.duree > 0){
+  if (chrono){
+    btn.hidden = true; btn.onclick = null;
+    majAffichageChronos();                    // un chrono tournait déjà : on le raccroche
+  } else if (etape.duree > 0){
     // Le chrono ne part pas tout seul : l'enfant appuie quand il est prêt
     $('#etape-chrono').textContent = mmss(etape.duree);
-    $('#jauge').style.transition = 'none';
     regler(0);
     btn.hidden = false;
-    btn.onclick = () => { btn.hidden = true; lancerPreparation(etape); };
+    btn.onclick = () => { btn.hidden = true; demarrerChrono(etape); };
   } else {
-    $('#etape-chrono').textContent = ''; regler(1); btn.hidden = true;
+    $('#etape-chrono').textContent = ''; regler(1);
+    btn.hidden = true; btn.onclick = null;
   }
 }
 
-/* 30 s pour se préparer, annonce de début, minuteur, annonce de fin */
 const PREPARATION = 30;
 
 function messagesPour(etape){
@@ -484,49 +520,99 @@ function annoncer(texte){
     if (!('speechSynthesis' in window)) throw new Error('muet');
     const u = new SpeechSynthesisUtterance(texte);
     u.lang = 'fr-CA'; u.rate = .95;
+    const voix = speechSynthesis.getVoices().find(v => v.lang && v.lang.startsWith('fr'));
+    if (voix) u.voice = voix;
     speechSynthesis.speak(u);
   } catch { bip(); }
 }
 
-function lancerPreparation(etape){
-  const msg = messagesPour(etape);
-  $('#etape-rang').textContent = 'Prépare-toi…';
-  $('#jauge').classList.add('anneau__jauge--prep');
-  lancerMinuteur(PREPARATION, null, () => {
-    $('#etape-rang').textContent = `Tâche ${session.index + 1} sur ${session.routine.etapes.length}`;
-    $('#jauge').classList.remove('anneau__jauge--prep');
-    annoncer(msg.debut);
-    lancerMinuteur(etape.duree, null, () => { bip(); annoncer(msg.fin); });
+const CIRC = 553;                                     // 2π × 88
+const regler = f => { $('#jauge').style.strokeDashoffset = CIRC * (1 - f); };
+const mmss = s => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.max(0, s) % 60).padStart(2, '0')}`;
+
+/* ---------------------------------------------------------
+   7c. Chronos — basés sur l'horloge et détachés de l'écran :
+   un minuteur continue pendant qu'un autre enfant navigue
+   dans son portail, et plusieurs peuvent tourner à la fois.
+   Cycle : 30 s de préparation → annonce → tâche → annonce.
+   --------------------------------------------------------- */
+const chronos = new Map();           // etapeId -> { phase, finA, duree, reste, enPause, etape }
+let pastillesParEtape = new Map();   // vue liste : etapeId -> { pastille, etape }
+
+const resteDe = c => c.enPause ? c.reste : Math.max(0, Math.ceil((c.finA - Date.now()) / 1000));
+
+function demarrerChrono(etape){
+  debloquerAudio();                  // geste utilisateur : le moment de déverrouiller le son iOS
+  chronos.set(etape.id, { phase: 'prep', finA: Date.now() + PREPARATION * 1000,
+                          duree: PREPARATION, reste: 0, enPause: false, etape });
+  garderEcranAllume();
+  majAffichageChronos();
+}
+
+// Toucher le chrono met en pause ; un autre toucher repart
+function basculerPause(id){
+  const c = chronos.get(id); if (!c) return;
+  if (c.enPause){ c.finA = Date.now() + c.reste * 1000; c.enPause = false; }
+  else { c.reste = resteDe(c); c.enPause = true; }
+  majAffichageChronos();
+}
+
+setInterval(() => {
+  chronos.forEach((c, id) => {
+    if (c.enPause || resteDe(c) > 0) return;
+    if (c.phase === 'prep'){
+      c.phase = 'tache'; c.duree = Math.max(1, c.etape.duree);
+      c.finA = Date.now() + c.duree * 1000;
+      annoncer(messagesPour(c.etape).debut);
+    } else {
+      chronos.delete(id);
+      bip(); annoncer(messagesPour(c.etape).fin);
+    }
+  });
+  majAffichageChronos();
+}, 250);
+
+function majAffichageChronos(){
+  // Vue guidée : le chrono de la tâche affichée
+  if (session && session.routine && $('#ecran-etape').classList.contains('ecran--actif')){
+    const etape = session.routine.etapes[session.index];
+    const c = etape && chronos.get(etape.id);
+    if (c){
+      const reste = resteDe(c);
+      $('#etape-chrono').textContent = (c.enPause ? '⏸ ' : '') + mmss(reste);
+      $('#etape-chrono').classList.toggle('etape-chrono--pause', c.enPause);
+      $('#jauge').classList.toggle('anneau__jauge--prep', c.phase === 'prep');
+      $('#etape-rang').textContent = c.phase === 'prep'
+        ? 'Prépare-toi…'
+        : `Tâche ${session.index + 1} sur ${session.routine.etapes.length}`;
+      regler(1 - reste / Math.max(1, c.duree));
+      $('#etape-demarrer').hidden = true;
+    }
+  }
+  // Vue liste : chaque pastille reflète l'état de son chrono
+  pastillesParEtape.forEach(({ pastille, etape }, id) => {
+    if (!pastille.isConnected) return;
+    const c = chronos.get(id);
+    if (!c){
+      pastille.textContent = mmss(etape.duree);
+      pastille.classList.remove('tache__duree--actif');
+      return;
+    }
+    const reste = resteDe(c);
+    pastille.textContent = (c.enPause ? '⏸ ' : c.phase === 'prep' ? '⏳ ' : '') + mmss(reste);
+    pastille.classList.add('tache__duree--actif');
   });
 }
 
-const CIRC = 553;                                     // 2π × 88
-const regler = f => { $('#jauge').style.strokeDashoffset = CIRC * (1 - f); };
-
-function lancerMinuteur(secondes, surTic = null, surFin = null){
-  session.restant = secondes;
-  if (surTic){ surTic(secondes); }
-  else {
-    afficherChrono();
-    $('#jauge').style.transition = 'none';
-    regler(0);
-    requestAnimationFrame(() => { $('#jauge').style.transition = 'stroke-dashoffset 1s linear'; });
-  }
-  session.minuteur = setInterval(() => {
-    session.restant--;
-    if (surTic) surTic(session.restant);
-    else { afficherChrono(); regler(1 - session.restant / secondes); }
-    if (session.restant <= 0){ arreterMinuteur(); if (surFin) surFin(); else bip(); }
-  }, 1000);
-}
-
-const mmss = s => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.max(0, s) % 60).padStart(2, '0')}`;
-const afficherChrono = () => { $('#etape-chrono').textContent = mmss(session.restant); };
-function arreterMinuteur(){ if (session && session.minuteur){ clearInterval(session.minuteur); session.minuteur = null; } }
+$('#etape-chrono').onclick = () => {
+  if (!session || !session.routine) return;
+  const etape = session.routine.etapes[session.index];
+  if (etape) basculerPause(etape.id);
+};
 
 $('#bouton-fait').onclick = () => {
   if (!session || !session.routine) return;
-  arreterMinuteur();
+  chronos.delete(session.routine.etapes[session.index].id);
   session.faites.add(session.routine.etapes[session.index].id);
   sauverAvancement(session.routine, session.faites);
   // Saute les tâches déjà cochées (reprise après correction)
@@ -544,6 +630,7 @@ function rendreListe(){
   majSousTitreListe();
 
   const ul = $('#taches'); ul.innerHTML = '';
+  pastillesParEtape = new Map();
   routine.etapes.forEach(et => {
     const li = document.createElement('li');
     li.className = 'tache' + (session.faites.has(et.id) ? ' tache--faite' : '');
@@ -555,9 +642,17 @@ function rendreListe(){
     li.querySelector('.tache__nom').onclick = bascule;
     li.querySelector('.tache__case').onclick = bascule;
     const pastille = li.querySelector('.tache__duree');
-    if (pastille) pastille.onclick = ev => { ev.stopPropagation(); minuteurListe(et, pastille); };
+    if (pastille){
+      pastillesParEtape.set(et.id, { pastille, etape: et });
+      pastille.onclick = ev => {
+        ev.stopPropagation();
+        if (chronos.has(et.id)) basculerPause(et.id);
+        else demarrerChrono(et);
+      };
+    }
     ul.appendChild(li);
   });
+  majAffichageChronos();
 }
 
 function majSousTitreListe(){
@@ -567,34 +662,12 @@ function majSousTitreListe(){
 
 function basculer(etape, li){
   if (session.faites.has(etape.id)) session.faites.delete(etape.id);
-  else session.faites.add(etape.id);
+  else { session.faites.add(etape.id); chronos.delete(etape.id); }
   sauverAvancement(session.routine, session.faites);
   li.classList.toggle('tache--faite', session.faites.has(etape.id));
   majSousTitreListe();
   avancerCiel();
   if (session.faites.size === session.routine.etapes.length) setTimeout(terminer, 450);
-}
-
-function minuteurListe(etape, pastille){
-  const dejaActive = session.minuteur && session.pastilleActive === pastille;
-  arreterMinuteur();
-  if (session.pastilleActive){
-    session.pastilleActive.classList.remove('tache__duree--actif');
-    session.pastilleActive = null;
-  }
-  if (dejaActive){ pastille.textContent = mmss(etape.duree); return; }
-  session.pastilleActive = pastille;
-  pastille.classList.add('tache__duree--actif');
-  const msg = messagesPour(etape);
-  lancerMinuteur(PREPARATION, reste => { pastille.textContent = `⏳ ${mmss(reste)}`; }, () => {
-    annoncer(msg.debut);
-    lancerMinuteur(etape.duree, reste => { pastille.textContent = mmss(reste); }, () => {
-      bip(); annoncer(msg.fin);
-      pastille.classList.remove('tache__duree--actif');
-      if (session) session.pastilleActive = null;
-      pastille.textContent = mmss(etape.duree);
-    });
-  });
 }
 
 /* ---------------------------------------------------------
@@ -603,7 +676,7 @@ function minuteurListe(etape, pastille){
 function terminer(){
   if (!session || !session.routine) return;
   const { enfant: enf, routine } = session;
-  arreterMinuteur();
+  routine.etapes.forEach(e => chronos.delete(e.id));
 
   const dejaFaite = etat.journal.some(x => x.date === jourISO() && x.routineId === routine.id);
   if (!dejaFaite){
@@ -627,9 +700,27 @@ function terminer(){
   aller('ecran-fin');
 }
 
+/* iOS n'autorise le son qu'après un geste : on déverrouille l'AudioContext
+   et la synthèse vocale au premier toucher, puis on les réutilise. */
+let ctxAudio = null;
+function debloquerAudio(){
+  try {
+    if (!ctxAudio) ctxAudio = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctxAudio.state === 'suspended') ctxAudio.resume();
+    if (!debloquerAudio.parole && 'speechSynthesis' in window){
+      debloquerAudio.parole = true;
+      const u = new SpeechSynthesisUtterance(' ');
+      u.volume = 0;
+      speechSynthesis.speak(u);
+    }
+  } catch {}
+}
+document.addEventListener('pointerdown', debloquerAudio, true);
+
 function bip(){
   try{
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    debloquerAudio();
+    const ctx = ctxAudio;
     [0, .18].forEach((d, i) => {
       const o = ctx.createOscillator(), g = ctx.createGain();
       o.type = 'sine'; o.frequency.value = i ? 880 : 660;
@@ -642,8 +733,9 @@ function bip(){
   } catch {}
 }
 
-async function garderEcranAllume(){ try { session.verrou = await navigator.wakeLock.request('screen'); } catch {} }
-function libererEcran(){ try { if (session && session.verrou) session.verrou.release(); } catch {} }
+let verrouEcran = null;
+async function garderEcranAllume(){ try { verrouEcran = await navigator.wakeLock.request('screen'); } catch {} }
+function libererEcran(){ try { if (verrouEcran){ verrouEcran.release(); verrouEcran = null; } } catch {} }
 
 /* ---------------------------------------------------------
    9. Réglages — appui long de 1,5 s, puis code parent
