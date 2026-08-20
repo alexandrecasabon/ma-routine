@@ -1,6 +1,6 @@
 /* Service worker : rend l'app utilisable hors ligne.
    Change VERSION à chaque mise à jour pour forcer le rafraîchissement. */
-const VERSION = 'routine-v6';
+const VERSION = 'routine-v7';
 const FICHIERS = [
   './', './index.html', './styles.css', './app.js',
   './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-180.png'

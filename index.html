@@ -40,6 +40,10 @@
       </mask>
     </defs>
     <g id="etoiles"></g>
+    <g id="nuages" fill="#FFFFFF">
+      <ellipse cx="300" cy="52" rx="55" ry="16"/><ellipse cx="342" cy="42" rx="38" ry="13"/><ellipse cx="262" cy="43" rx="32" ry="11"/>
+      <ellipse cx="750" cy="80" rx="62" ry="18"/><ellipse cx="797" cy="68" rx="40" ry="14"/><ellipse cx="708" cy="70" rx="34" ry="12"/>
+    </g>
     <path id="trajet" d="M60,178 Q500,-70 940,178" fill="none"
           stroke="rgba(255,255,255,.40)" stroke-width="3" stroke-dasharray="8 12" stroke-linecap="round"/>
     <g id="jalons"></g>
@@ -54,6 +58,8 @@
   </svg>
   <!-- Compte à rebours du départ, matins d'école seulement -->
   <div class="depart" id="depart" hidden></div>
+  <!-- L'heure, toujours visible -->
+  <div class="horloge" id="horloge"></div>
 </header>
 
 <main>
@@ -99,6 +105,7 @@
       <p class="etape-rang" id="etape-rang"></p>
       <h2 class="etape-titre" id="etape-titre"></h2>
       <p class="etape-chrono" id="etape-chrono"></p>
+      <p class="indice-pause" id="indice-pause" hidden>touche le temps pour une pause</p>
       <button class="bouton-action bouton-action--demarrer" id="etape-demarrer" hidden>
         <span>⏱</span><span>Démarrer</span>
       </button>
@@ -121,10 +128,12 @@
 
   <!-- 4. Fin -->
   <section class="ecran ecran--fin" id="ecran-fin">
-    <div class="sceau" id="sceau-fin">✓</div>
+    <div class="sceau" id="sceau-fin">
+      <svg width="54" height="54" viewBox="0 0 22 22" fill="none" stroke="#FFF" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12 L8.5 17.5 L19 5"/></svg>
+    </div>
     <h1 class="titre" id="titre-fin">Routine terminée</h1>
     <p class="sous-titre" id="sous-titre-fin"></p>
-    <p class="sous-titre" id="record-fin"></p>
+    <p class="chip-fin" id="record-fin"></p>
     <button class="bouton-action bouton-action--calme" data-vers="ecran-enfants">Retour</button>
   </section>
 
@@ -205,7 +214,13 @@
   </div>
 </div>
 
-<button id="cle-parent" aria-label="Réglages (maintenir)">⚙</button>
+<button id="cle-parent" aria-label="Réglages (maintenir)">
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+    <line x1="3" y1="5" x2="17" y2="5"/><circle cx="12" cy="5" r="2.6" fill="var(--craie)"/>
+    <line x1="3" y1="10" x2="17" y2="10"/><circle cx="7" cy="10" r="2.6" fill="var(--craie)"/>
+    <line x1="3" y1="15" x2="17" y2="15"/><circle cx="14" cy="15" r="2.6" fill="var(--craie)"/>
+  </svg>
+</button>
 <script src="app.js" defer></script>
 </body>
 </html>

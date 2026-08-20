@@ -219,8 +219,11 @@ function peindreCiel(progres, moment = 'matin'){
   if (soir) $('#disque').setAttribute('mask', 'url(#masque-lune)');
   else $('#disque').removeAttribute('mask');
   $('#rayons').setAttribute('opacity', soir ? '0' : '1');
-  $('#halo').setAttribute('opacity', soir ? '.55' : '1');
+  // Le halo de lune s'intensifie à mesure que la nuit avance
+  $('#halo').setAttribute('r', soir ? 46 : 52);
+  $('#halo').setAttribute('opacity', soir ? String(.4 + .5 * progres) : '1');
   $('#etoiles').style.opacity = soir ? String(progres) : '0';
+  $('#nuages').style.opacity = soir ? '0' : '.26';
 }
 
 function poserJalons(nb, faits = 0){
@@ -273,15 +276,20 @@ function peindreCielAccueil(){
 
 let departAnnonce = false;
 function majDepart(){
+  // L'heure, toujours visible — le premier repère de temps des enfants
+  $('#horloge').textContent = new Date().toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit' });
+
   const zone = $('#depart');
   if (!matinEcole()){ zone.hidden = true; departAnnonce = false; return; }
 
   const { mnt, fin } = fenetreMatin();
   const reste = Math.round((fin - mnt) * 60);
   zone.hidden = false;
+  zone.classList.remove('depart--bientot', 'depart--urgent', 'depart--maintenant');
   if (reste > 0){
-    zone.classList.remove('depart--maintenant');
     zone.textContent = `École dans ${mmss(reste)}`;
+    if (reste <= 300)      zone.classList.add('depart--urgent');    // 5 dernières minutes
+    else if (reste <= 900) zone.classList.add('depart--bientot');   // le quart d'heure final
     departAnnonce = false;
   } else {
     zone.classList.add('depart--maintenant');
@@ -289,9 +297,12 @@ function majDepart(){
     if (!departAnnonce){ departAnnonce = true; bip(); annoncer("Départ pour l'école !"); }
   }
 
-  // Le soleil suit l'heure sauf pendant une routine du soir
-  if (!session || !session.routine || session.routine.moment === 'matin')
+  // Le soleil suit l'heure sauf pendant une routine du soir,
+  // et son halo grossit à mesure que le départ approche
+  if (!session || !session.routine || session.routine.moment === 'matin'){
     peindreCiel(progresMatin(), 'matin');
+    $('#halo').setAttribute('r', reste <= 0 || reste > 900 ? 52 : reste <= 300 ? 66 : 58);
+  }
 }
 setInterval(majDepart, 1000);
 
@@ -308,7 +319,19 @@ function aller(idEcran){
     peindreCielAccueil();
     rendreJaugeFamille();
   }
+  armerInactivite();
 }
+/* Profil laissé ouvert : retour à l'écran de sélection après 30 s sans toucher.
+   Jamais pendant l'exécution d'une routine — l'enfant travaille loin de l'iPad. */
+let chronoInactivite = null;
+function armerInactivite(){
+  clearTimeout(chronoInactivite);
+  const actif = $('.ecran--actif');
+  if (!actif || (actif.id !== 'ecran-routines' && actif.id !== 'ecran-fin')) return;
+  chronoInactivite = setTimeout(() => aller('ecran-enfants'), 30000);
+}
+document.addEventListener('pointerdown', armerInactivite);
+
 document.addEventListener('click', e => {
   const c = e.target.closest('[data-vers]');
   if (!c) return;
@@ -327,7 +350,7 @@ function rendreEnfants(){
     const b = document.createElement('button');
     b.className = 'carte';
     b.style.setProperty('--accent', enf.couleur);
-    b.innerHTML = `<div class="carte__emoji">${enf.emoji}</div>
+    b.innerHTML = `<div class="carte__avatar" style="background:${enf.couleur}29">${enf.emoji}</div>
                    <div class="carte__nom">${echapper(enf.prenom)}</div>`;
     b.onclick = () => ouvrirRoutines(enf);
     zone.appendChild(b);
@@ -353,15 +376,22 @@ function ouvrirRoutines(enf){
     ? `Ta série : ${s} jour${s > 1 ? 's' : ''} d'affilée · ton record : ${enf.record}`
     : 'Nouvelle série à démarrer aujourd\u2019hui.';
 
+  const ICONE_SOLEIL = '<svg width="52" height="52" viewBox="0 0 52 52"><circle cx="26" cy="26" r="13" fill="#FFC93C"/><g stroke="#FFC93C" stroke-width="4" stroke-linecap="round"><line x1="26" y1="3" x2="26" y2="9"/><line x1="26" y1="43" x2="26" y2="49"/><line x1="3" y1="26" x2="9" y2="26"/><line x1="43" y1="26" x2="49" y2="26"/><line x1="10" y1="10" x2="14" y2="14"/><line x1="38" y1="38" x2="42" y2="42"/><line x1="38" y1="14" x2="42" y2="10"/><line x1="10" y1="42" x2="14" y2="38"/></g></svg>';
+  const ICONE_LUNE   = '<svg width="52" height="52" viewBox="0 0 52 52"><circle cx="26" cy="26" r="16" fill="#8FA6D9"/><circle cx="33" cy="20" r="13" fill="#FFFCF5"/></svg>';
+
   const zone = $('#liste-routines'); zone.innerHTML = '';
   etat.routines.filter(r => r.enfantId === enf.id).forEach(r => {
     const faite = etat.journal.some(x => x.date === jourISO() && x.routineId === r.id);
+    const enCours = avancementDuJour(r).size;
+    const note = faite ? 'Déjà faite aujourd\u2019hui'
+      : enCours > 0 ? `${enCours} tâche${enCours > 1 ? 's' : ''} sur ${r.etapes.length} déjà faite${enCours > 1 ? 's' : ''}`
+      : `${r.etapes.length} tâches`;
     const b = document.createElement('button');
     b.className = 'carte';
     b.style.setProperty('--accent', enf.couleur);
-    b.innerHTML = `<div class="carte__emoji">${r.moment === 'soir' ? '🌙' : '☀️'}</div>
+    b.innerHTML = `<div class="carte__icone">${r.moment === 'soir' ? ICONE_LUNE : ICONE_SOLEIL}</div>
                    <div class="carte__nom">${echapper(r.nom)}</div>
-                   <div class="carte__note">${faite ? 'Déjà faite aujourd\u2019hui' : r.etapes.length + ' tâches'}</div>`;
+                   <div class="carte__note">${note}</div>`;
     b.onclick = () => demarrer(enf, r);
     zone.appendChild(b);
   });
@@ -373,6 +403,7 @@ function ouvrirRoutines(enf){
 /* ----- 6b. Cumulatif du jour : l'enfant peut retirer une tâche cochée par erreur ----- */
 function rendreTachesJour(enf){
   const zone = $('#taches-jour'); zone.innerHTML = '';
+  let indicePose = false;
   etat.routines.filter(r => r.enfantId === enf.id).forEach(r => {
     const faites = avancementDuJour(r);
     if (!faites.size) return;
@@ -390,6 +421,13 @@ function rendreTachesJour(enf){
       bloc.appendChild(b);
     });
     zone.appendChild(bloc);
+    if (!indicePose){
+      indicePose = true;
+      const indice = document.createElement('p');
+      indice.className = 'jour__note';
+      indice.textContent = 'Touche une tâche cochée par erreur pour la retirer.';
+      bloc.appendChild(indice);
+    }
   });
 }
 
@@ -492,6 +530,7 @@ function montrerEtape(){
   const chrono = chronos.get(etape.id);
   $('#etape-chrono').classList.remove('etape-chrono--pause');
   $('#jauge').classList.remove('anneau__jauge--prep');
+  $('#indice-pause').hidden = true;
   if (chrono){
     btn.hidden = true; btn.onclick = null;
     majAffichageChronos();                    // un chrono tournait déjà : on le raccroche
@@ -587,6 +626,9 @@ function majAffichageChronos(){
         : `Tâche ${session.index + 1} sur ${session.routine.etapes.length}`;
       regler(1 - reste / Math.max(1, c.duree));
       $('#etape-demarrer').hidden = true;
+      $('#indice-pause').hidden = false;
+    } else {
+      $('#indice-pause').hidden = true;
     }
   }
   // Vue liste : chaque pastille reflète l'état de son chrono

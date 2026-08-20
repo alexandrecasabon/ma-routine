@@ -104,4 +104,13 @@ Chaque enfant a une couleur d'accent injectée via la variable CSS `--accent`.
   1,5 s — le bouton se remplit pendant l'appui, un tap bref secoue et affiche un indice.
   Niveaux `apercu` et `liste` : tap normal. Quitter n'est jamais destructif, l'avancement
   du jour est persistant.
+- Heure et urgence : l'horloge (`#horloge`) est toujours visible en haut à droite. Les matins
+  d'école, le bandeau passe au jaune soleil à 15 min du départ puis au corail pulsant à 5 min,
+  et le halo du soleil grossit (52 → 58 → 66). Le soir, halo de lune et étoiles s'intensifient
+  avec la progression.
+- Retour automatique : 30 s sans toucher sur l'accueil d'un enfant ou l'écran de fin →
+  retour à « Qui commence ? ». Jamais pendant l'exécution d'une routine (`armerInactivite`).
+- Le design suit le canevas « Refonte Ma routine » (artifact Claude Design) : avatars sur
+  pastille teintée, icônes SVG soleil/lune sur les cartes, nuages le matin, chip de série,
+  sceau SVG. Emoji réservés au contenu (avatars, tâches), icônes d'interface en SVG.
 
